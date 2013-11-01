@@ -2,8 +2,8 @@
 ## Recipe::   server
 
 include_recipe 'apt'
-
 include_recipe 'apache2'
+package 'backuppc' 
 
 # add backuppc user to apache's user group
 group node['apache']['group'] do
@@ -11,8 +11,6 @@ group node['apache']['group'] do
   members node['backuppc']['user']['username']
   append true
 end
-
-package 'backuppc' 
 
 append_code="no warnings 'deprecated';"
 bash 'suppress-qw-warnings' do
@@ -41,16 +39,17 @@ link "#{node['apache']['dir']}/conf.d/backuppc.conf" do
   to "#{node['backuppc']['conf_dir']}/apache.conf"
 end
 
-private_key = "#{node['backuppc']['user']['home']}/.ssh/id_rsa"
-public_key = "#{private_key}.pub"
+private_key = "#{node['backuppc']['top_dir']}/.ssh/id_rsa"
 execute 'generate-ssh-keys' do
   user node['backuppc']['user']['username']
   command "ssh-keygen -t rsa -f #{private_key} -N ''"
   creates private_key
 end
 
-execute 'serve-public-key-for-clients' do
-  user node['backuppc']['user']['username']
+public_key_url = "file://#{private_key}.pub"
+remote_file "serve-public-key-for-clients" do
+  source public_key_url
+  path "#{node['backuppc']['cgi_dir']}/id_rsa.pub"
+  owner node['backuppc']['user']['username']
   group node['apache']['group']
-  command "cp #{public_key} #{node['backuppc']['cgi_dir']}"
 end
